@@ -1,0 +1,1 @@
+Instructions complètes dans le chat précédent.
