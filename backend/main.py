@@ -129,8 +129,13 @@ sessions = {}
 @app.post("/start")
 async def start_import(request: ImportRequest, background_tasks: BackgroundTasks):
     try:
+        logger.info(f"Démarrage de l'import pour l'email: {request.email}")
         request.validate()
+        logger.info("Validation des entrées réussie")
+        
         session_id = str(uuid.uuid4())
+        logger.info(f"Création de la session: {session_id}")
+        
         session = ImportSession(
             email=request.email,
             password=request.password,
@@ -138,13 +143,21 @@ async def start_import(request: ImportRequest, background_tasks: BackgroundTasks
             limit=request.limit,
             session_id=session_id
         )
+        logger.info("Session créée")
+        
         session_manager.add_session(session)
+        logger.info("Session ajoutée au gestionnaire")
+        
         background_tasks.add_task(run_import_session, session_id, session_manager)
+        logger.info("Tâche d'import ajoutée aux tâches en arrière-plan")
+        
         return {"session_id": session_id, "message": "Import démarré"}
     except ValueError as e:
+        logger.error(f"Erreur de validation: {str(e)}")
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         logger.error(f"Erreur lors du démarrage de l'import: {str(e)}")
+        logger.error(f"Traceback: {traceback.format_exc()}")
         raise HTTPException(status_code=500, detail="Erreur interne du serveur")
 
 @app.post("/2fa")
@@ -186,20 +199,27 @@ async def stop_import(request: StopRequest):
 @app.get("/status/{session_id}")
 async def get_status(session_id: str):
     try:
+        logger.info(f"Vérification du statut pour la session: {session_id}")
         if not re.match(r'^[a-f0-9-]{36}$', session_id):
             raise HTTPException(status_code=400, detail="ID de session invalide")
+        
         session = session_manager.get_session(session_id)
         if not session:
+            logger.warning(f"Session non trouvée: {session_id}")
             raise HTTPException(status_code=404, detail="Session non trouvée")
-        return {
+        
+        status = {
             "status": session.status,
             "progress": session.progress,
             "total": session.total,
             "errors": session.errors,
             "files_to_download": session.files_to_download
         }
+        logger.info(f"Statut de la session {session_id}: {status}")
+        return status
     except Exception as e:
         logger.error(f"Erreur lors de la récupération du statut: {str(e)}")
+        logger.error(f"Traceback: {traceback.format_exc()}")
         raise HTTPException(status_code=500, detail="Erreur interne du serveur")
 
 @app.get("/download/{session_id}/{token}")

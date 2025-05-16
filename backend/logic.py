@@ -13,6 +13,7 @@ import base64
 from datetime import datetime, timedelta
 from collections import defaultdict
 import time
+import traceback
 
 # Configuration du logging
 logging.basicConfig(level=logging.DEBUG)
@@ -206,6 +207,7 @@ def run_import_session(session_id, session_manager, batch_size=10):
     try:
         # Vérification de la sécurité
         if not check_login_attempts(session.email):
+            logger.warning(f"Trop de tentatives de connexion pour {session.email}")
             session.status = "error"
             session.errors.append("Trop de tentatives de connexion. Veuillez réessayer dans 5 minutes.")
             session.save()
@@ -213,7 +215,10 @@ def run_import_session(session_id, session_manager, batch_size=10):
 
         logger.info(f"Tentative de connexion à iCloud pour {session.email}")
         try:
+            logger.info("Initialisation de l'API iCloud...")
             api = PyiCloudService(session.email, session.password)
+            logger.info("Connexion à iCloud réussie")
+            
             if api.requires_2fa:
                 logger.info("Authentification à deux facteurs requise.")
                 session.status = "error"
@@ -221,16 +226,21 @@ def run_import_session(session_id, session_manager, batch_size=10):
                 session.save()
                 return
         except Exception as e:
+            logger.error(f"Erreur lors de la connexion à iCloud: {str(e)}")
             record_login_attempt(session.email)
             raise e
 
+        logger.info("Récupération de la liste des photos...")
         photos_iter = api.photos.all
         session.total = session.limit if session.limit else len(photos_iter)
+        logger.info(f"Nombre total de photos à traiter: {session.total}")
+        
         processed = 0
         errors = []
 
         for asset in photos_iter:
             if session.limit and processed >= session.limit:
+                logger.info(f"Limite atteinte ({session.limit} fichiers)")
                 break
 
             while session.is_paused():
@@ -244,6 +254,8 @@ def run_import_session(session_id, session_manager, batch_size=10):
 
             try:
                 filename = asset.filename or f"photo_{int(time.time() * 1000)}"
+                logger.info(f"Traitement du fichier: {filename}")
+                
                 ext = os.path.splitext(filename)[1].lower()
                 
                 # Récupération de la date de création
@@ -261,18 +273,21 @@ def run_import_session(session_id, session_manager, batch_size=10):
                 else:
                     relative_path = filename
 
-                # Téléchargement du fichier
+                logger.info(f"Téléchargement du fichier: {relative_path}")
                 download = asset.download()
                 file_data = download.raw.read()
+                logger.info(f"Fichier téléchargé: {len(file_data)} octets")
 
                 # Conversion HEIC en JPG si nécessaire
                 if ext == ".heic":
+                    logger.info("Conversion HEIC en JPG...")
                     image = Image.open(io.BytesIO(file_data))
                     filename_jpg = os.path.splitext(filename)[0] + ".jpg"
                     relative_path = os.path.splitext(relative_path)[0] + ".jpg"
                     output = io.BytesIO()
                     image.save(output, format="JPEG")
                     file_data = output.getvalue()
+                    logger.info("Conversion terminée")
 
                 # Génération d'un token unique pour ce fichier
                 token = base64.b64encode(os.urandom(32)).decode('utf-8')
@@ -292,20 +307,24 @@ def run_import_session(session_id, session_manager, batch_size=10):
                 processed += 1
                 session.progress = processed
                 session.save()
+                logger.info(f"Progression: {processed}/{session.total}")
 
             except Exception as e:
                 logger.error(f"Erreur lors du traitement de {filename}: {str(e)}")
                 errors.append(f"{filename}: {str(e)}")
 
         if errors:
+            logger.warning(f"Import terminé avec {len(errors)} erreurs")
             session.status = "error"
             session.errors.extend(errors)
         else:
+            logger.info("Import terminé avec succès")
             session.status = "finished"
         session.save()
 
     except Exception as e:
         logger.error(f"Erreur globale: {str(e)}")
+        logger.error(f"Traceback: {traceback.format_exc()}")
         session.status = "error"
         session.errors.append(f"Erreur lors de l'importation: {str(e)}")
         session.save()
