@@ -238,8 +238,10 @@ function App() {
 
       const data = await response.json();
 
-      if (response.ok) {
-        setStatus(data.message);
+      if (data.session_id) {
+        setSessionId(data.session_id);
+        setStatus("Import lancé après 2FA. Suivi en cours...");
+        setPolling(true);
         setStep("login");
         setCode2fa("");
       } else {
@@ -402,15 +404,28 @@ function App() {
             )}
             {step === "2fa" && (
               <>
-                <p>Entrez votre code d'authentification à deux facteurs :</p>
+                <p style={{ marginBottom: 18, color: '#666' }}>Entrez le code de vérification envoyé à votre appareil Apple :</p>
                 <input
                   type="text"
-                  placeholder="Code 2FA"
+                  placeholder="Code de vérification"
                   value={code2fa}
                   onChange={(e) => setCode2fa(e.target.value)}
                   style={styles.input}
+                  autoFocus
                 />
-                <button onClick={submit2fa} style={styles.button}>Valider le code 2FA</button>
+                <div style={{ display: 'flex', gap: '12px' }}>
+                  <button onClick={submit2fa} style={styles.button}>Valider le code</button>
+                  <button 
+                    onClick={() => {
+                      setStep("login");
+                      setCode2fa("");
+                      setStatus("");
+                    }} 
+                    style={{ ...styles.button, ...styles.buttonAlt }}
+                  >
+                    Retour
+                  </button>
+                </div>
               </>
             )}
             {/* Barre de progression */}

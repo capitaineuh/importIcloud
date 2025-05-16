@@ -64,6 +64,25 @@ import_sessions = ImportSessionManager()
 async def start_import(data: UserInput):
     try:
         logger.debug(f"Démarrage d'une nouvelle session d'import pour {data.email}")
+        
+        # Tentative de connexion à iCloud
+        try:
+            api = PyiCloudService(data.email, data.password)
+            if api.requires_2fa:
+                logger.debug("2FA requis")
+                return JSONResponse(
+                    content={"message": "2FA required"},
+                    status_code=200,
+                    headers={
+                        "Access-Control-Allow-Origin": "https://import-icloud-frontend.vercel.app",
+                        "Access-Control-Allow-Credentials": "true"
+                    }
+                )
+        except Exception as e:
+            logger.error(f"Erreur lors de la connexion iCloud: {str(e)}")
+            raise HTTPException(status_code=401, detail="Identifiants iCloud invalides")
+
+        # Si pas de 2FA, on continue avec l'import
         session_id = str(uuid.uuid4())
         import_sessions.create_session(session_id, data.email, data.password, data.destination_folder, data.limit)
         import_sessions.start(session_id)
@@ -71,7 +90,7 @@ async def start_import(data: UserInput):
             content={"message": "Import lancé.", "session_id": session_id},
             status_code=200,
             headers={
-                "Access-Control-Allow-Origin": "http://localhost:5173",
+                "Access-Control-Allow-Origin": "https://import-icloud-frontend.vercel.app",
                 "Access-Control-Allow-Credentials": "true"
             }
         )
@@ -84,31 +103,29 @@ async def start_import(data: UserInput):
 async def validate_2fa(data: TwoFACode):
     try:
         logger.debug(f"Validation 2FA pour l'email: {data.email}")
-        api = sessions.get(data.email)
-        if not api:
-            logger.error("Session non trouvée")
-            raise HTTPException(status_code=400, detail="Session non trouvée, veuillez relancer.")
-
-        if not api.validate_2fa_code(data.code):
-            logger.error("Code 2FA invalide")
-            raise HTTPException(status_code=400, detail="Code 2FA invalide.")
-
+        
+        # Tentative de connexion avec 2FA
         try:
-            logger.info("Démarrage de l'import avec 2FA validé")
-            run_import_session(data.email, data.password, data.destination_folder, data.limit)
-            sessions.pop(data.email, None)  # supprime la session après succès
-            return JSONResponse(
-                content={"message": "Importation terminée avec succès après 2FA."},
-                status_code=200,
-                headers={
-                    "Access-Control-Allow-Origin": "http://localhost:5173",
-                    "Access-Control-Allow-Credentials": "true"
-                }
-            )
+            api = PyiCloudService(data.email, data.password)
+            if not api.validate_2fa_code(data.code):
+                raise HTTPException(status_code=400, detail="Code 2FA invalide")
         except Exception as e:
-            logger.error(f"Erreur lors de l'import avec 2FA: {str(e)}")
-            logger.error(f"Traceback: {traceback.format_exc()}")
-            raise HTTPException(status_code=500, detail=str(e))
+            logger.error(f"Erreur lors de la validation 2FA: {str(e)}")
+            raise HTTPException(status_code=401, detail="Erreur lors de la validation 2FA")
+
+        # Si 2FA validé, on lance l'import
+        session_id = str(uuid.uuid4())
+        import_sessions.create_session(session_id, data.email, data.password, data.destination_folder, data.limit)
+        import_sessions.start(session_id)
+        
+        return JSONResponse(
+            content={"message": "Import lancé après 2FA.", "session_id": session_id},
+            status_code=200,
+            headers={
+                "Access-Control-Allow-Origin": "https://import-icloud-frontend.vercel.app",
+                "Access-Control-Allow-Credentials": "true"
+            }
+        )
     except Exception as e:
         logger.error(f"Erreur lors de la validation 2FA: {str(e)}")
         logger.error(f"Traceback: {traceback.format_exc()}")
