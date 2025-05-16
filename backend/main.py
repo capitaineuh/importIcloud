@@ -37,6 +37,11 @@ app.add_middleware(
 session_manager = ImportSessionManager()
 
 # Validation des entrées
+def validate_email(email: str) -> bool:
+    """Valide le format d'un email."""
+    pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+    return bool(re.match(pattern, email))
+
 def validate_password(password: str) -> bool:
     """Valide que le mot de passe respecte les critères de sécurité Apple."""
     if len(password) < 8:
@@ -81,12 +86,14 @@ class StopSessionInput(BaseModel):
     session_id: str
 
 class ImportRequest(BaseModel):
-    email: EmailStr
+    email: str
     password: constr(min_length=8)
     destination_folder: str
     limit: Optional[int] = None
 
     def validate(self):
+        if not validate_email(self.email):
+            raise ValueError("Format d'email invalide")
         if not validate_password(self.password):
             raise ValueError("Le mot de passe ne respecte pas les critères de sécurité Apple")
         self.destination_folder = sanitize_path(self.destination_folder)
@@ -94,13 +101,15 @@ class ImportRequest(BaseModel):
             raise ValueError("La limite doit être positive")
 
 class TwoFactorRequest(BaseModel):
-    email: EmailStr
+    email: str
     password: constr(min_length=8)
     code: constr(min_length=6, max_length=6)
     destination_folder: str
     limit: Optional[int] = None
 
     def validate(self):
+        if not validate_email(self.email):
+            raise ValueError("Format d'email invalide")
         if not validate_password(self.password):
             raise ValueError("Le mot de passe ne respecte pas les critères de sécurité Apple")
         self.destination_folder = sanitize_path(self.destination_folder)
