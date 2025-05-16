@@ -1,4 +1,4 @@
-FROM python:3.9.16-slim
+FROM python:3.9-slim
 
 WORKDIR /app
 
@@ -24,4 +24,4 @@ ENV PYTHON_VERSION=3.9.16
 EXPOSE 8000
 
 # Start the application
-CMD ["python", "-m", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"] 
+CMD ["python", "main.py"] 
