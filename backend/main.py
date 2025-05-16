@@ -26,6 +26,10 @@ app.add_middleware(
     max_age=3600,
 )
 
+@app.get("/")
+async def root():
+    return {"status": "ok", "message": "iCloud Importer API is running"}
+
 class UserInput(BaseModel):
     email: str
     password: str
