@@ -150,6 +150,11 @@ class ImportSessionManager:
         self.sessions = {}
         self.load_all_sessions()
 
+    def add_session(self, session):
+        with SESSIONS_LOCK:
+            self.sessions[session.session_id] = session
+            session.save()
+
     def create_session(self, session_id, email, password, destination, limit):
         with SESSIONS_LOCK:
             session = ImportSession(email, password, destination, limit, session_id=session_id)
