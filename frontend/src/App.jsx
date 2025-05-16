@@ -3,6 +3,9 @@ import { auth } from './firebase';
 import { signInWithEmailAndPassword, signOut, onAuthStateChanged, signInWithPopup } from 'firebase/auth';
 import { googleProvider } from './firebase';
 
+// Configuration de l'API
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
+
 // Fonction utilitaire pour obtenir le token Firebase
 async function getFirebaseToken() {
   const user = auth.currentUser;
@@ -146,6 +149,7 @@ function App() {
   const [sessionId, setSessionId] = useState(null);
   const [importStatus, setImportStatus] = useState(null); // {status, progress, total, errors}
   const [polling, setPolling] = useState(false);
+  const [downloadedFiles, setDownloadedFiles] = useState([]);
   const abortControllerRef = useRef(null);
   const pollingIntervalRef = useRef(null);
   const [user, setUser] = useState(null);
@@ -164,7 +168,7 @@ function App() {
     abortControllerRef.current = new AbortController();
     try {
       const token = await getFirebaseToken();
-      const response = await fetch("https://importicloud.onrender.com/start", {
+      const response = await fetch(`${API_URL}/start`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -214,7 +218,7 @@ function App() {
     abortControllerRef.current = new AbortController();
     try {
       const token = await getFirebaseToken();
-      const response = await fetch("https://importicloud.onrender.com/2fa", {
+      const response = await fetch(`${API_URL}/2fa`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -277,7 +281,7 @@ function App() {
       return;
     }
     const token = await getFirebaseToken();
-    await fetch("https://importicloud.onrender.com/stop", {
+    await fetch(`${API_URL}/stop`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -289,13 +293,41 @@ function App() {
     setPolling(false);
   };
 
-  // Polling du statut d'import
+  // Fonction pour télécharger un fichier
+  const downloadFile = async (token, filename) => {
+    try {
+      const response = await fetch(`${API_URL}/download/${sessionId}/${token}`, {
+        headers: {
+          ...(token ? { "Authorization": `Bearer ${token}` } : {})
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Erreur lors du téléchargement: ${response.statusText}`);
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (error) {
+      console.error("Erreur lors du téléchargement:", error);
+      setStatus(`Erreur lors du téléchargement: ${error.message}`);
+    }
+  };
+
+  // Mise à jour du polling pour récupérer la liste des fichiers
   useEffect(() => {
     if (polling && sessionId) {
       pollingIntervalRef.current = setInterval(async () => {
         try {
           const token = await getFirebaseToken();
-          const res = await fetch(`https://importicloud.onrender.com/status/${sessionId}`, {
+          const res = await fetch(`${API_URL}/status/${sessionId}`, {
             headers: {
               ...(token ? { "Authorization": `Bearer ${token}` } : {})
             }
@@ -303,16 +335,19 @@ function App() {
           if (res.ok) {
             const data = await res.json();
             setImportStatus(data);
+            if (data.files_to_download) {
+              setDownloadedFiles(data.files_to_download);
+            }
             if (data.status === "finished" || data.status === "error") {
               setPolling(false);
               setStatus(data.status === "finished" ? "Import terminé !" : "Erreur lors de l'import.");
             }
           } else if (res.status === 404) {
             setPolling(false);
-            setStatus("Session d'import non trouvée ou expirée (backend redémarré ?)");
+            setStatus("Session d'import non trouvée ou expirée");
           }
         } catch (e) {
-          // ignore
+          console.error("Erreur lors du polling:", e);
         }
       }, 2000);
       return () => clearInterval(pollingIntervalRef.current);
@@ -453,6 +488,41 @@ function App() {
               </div>
             )}
             <div style={styles.status}>{status}</div>
+
+            {downloadedFiles.length > 0 && (
+              <div style={{ marginTop: 24, width: '100%' }}>
+                <h3 style={{ fontSize: 18, marginBottom: 12 }}>Fichiers disponibles</h3>
+                <div style={{ 
+                  maxHeight: 300, 
+                  overflowY: 'auto',
+                  border: '1px solid #e0e0e0',
+                  borderRadius: 10,
+                  padding: 12
+                }}>
+                  {downloadedFiles.map((file, index) => (
+                    <div key={index} style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      padding: '8px 0',
+                      borderBottom: index < downloadedFiles.length - 1 ? '1px solid #e0e0e0' : 'none'
+                    }}>
+                      <span style={{ fontSize: 14 }}>{file.path}</span>
+                      <button
+                        onClick={() => downloadFile(file.token, file.path.split('/').pop())}
+                        style={{
+                          ...styles.button,
+                          padding: '6px 12px',
+                          fontSize: 14
+                        }}
+                      >
+                        Télécharger
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </>
         )}
       </div>
