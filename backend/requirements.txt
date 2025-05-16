@@ -9,4 +9,4 @@ python-dotenv==1.0.0
 pillow==10.1.0
 pillow-heif==0.13.1
 tqdm==4.66.1
-keyring<24.0.0
+keyring==23.13.1
