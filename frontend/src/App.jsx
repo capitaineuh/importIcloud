@@ -4,7 +4,7 @@ import { signInWithEmailAndPassword, signOut, onAuthStateChanged, signInWithPopu
 import { googleProvider } from './firebase';
 
 // Configuration de l'API
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
+const API_URL = import.meta.env.VITE_API_URL || "https://import-icloud-backend-production.up.railway.app";
 
 // Fonction utilitaire pour obtenir le token Firebase
 async function getFirebaseToken() {
