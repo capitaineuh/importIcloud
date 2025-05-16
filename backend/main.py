@@ -7,7 +7,8 @@ from fastapi.responses import JSONResponse
 import logging
 import traceback
 import uuid
-
+import sys #logs de version temporaire 
+print("----------------------------------Python version:", sys.version)
 # Configuration du logging
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
