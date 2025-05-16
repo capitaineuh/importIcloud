@@ -23,7 +23,7 @@ app.add_middleware(
         "https://import-icloud-frontend.vercel.app",  # origine Vercel (production)
     ],
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"],
     expose_headers=["*"],
     max_age=3600,

@@ -169,7 +169,6 @@ function App() {
         headers: {
           "Content-Type": "application/json",
           "Accept": "application/json",
-          "Access-Control-Allow-Origin": "*",
           ...(token ? { "Authorization": `Bearer ${token}` } : {})
         },
         credentials: "include",
@@ -220,7 +219,6 @@ function App() {
         headers: {
           "Content-Type": "application/json",
           "Accept": "application/json",
-          "Access-Control-Allow-Origin": "*",
           ...(token ? { "Authorization": `Bearer ${token}` } : {})
         },
         credentials: "include",
