@@ -18,7 +18,10 @@ app = FastAPI()
 # Configuration CORS plus permissive
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],  # origine front local
+    allow_origins=[
+        "http://localhost:5173",  # origine front local (développement)
+        "https://import-icloud-frontend.vercel.app",  # origine Vercel (production)
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

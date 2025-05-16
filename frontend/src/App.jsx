@@ -164,7 +164,7 @@ function App() {
     abortControllerRef.current = new AbortController();
     try {
       const token = await getFirebaseToken();
-      const response = await fetch("http://localhost:8000/start", {
+      const response = await fetch("https://importicloud.onrender.com/start", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -215,7 +215,7 @@ function App() {
     abortControllerRef.current = new AbortController();
     try {
       const token = await getFirebaseToken();
-      const response = await fetch("http://localhost:8000/2fa", {
+      const response = await fetch("https://importicloud.onrender.com/2fa", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -277,7 +277,7 @@ function App() {
       return;
     }
     const token = await getFirebaseToken();
-    await fetch("http://localhost:8000/stop", {
+    await fetch("https://importicloud.onrender.com/stop", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -295,7 +295,7 @@ function App() {
       pollingIntervalRef.current = setInterval(async () => {
         try {
           const token = await getFirebaseToken();
-          const res = await fetch(`http://localhost:8000/status/${sessionId}`, {
+          const res = await fetch(`https://importicloud.onrender.com/status/${sessionId}`, {
             headers: {
               ...(token ? { "Authorization": `Bearer ${token}` } : {})
             }
