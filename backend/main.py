@@ -16,6 +16,7 @@ from datetime import datetime
 import asyncio
 import io
 import re
+import zipfile
 
 print("----------------------------------Python version:", sys.version)
 # Configuration du logging
@@ -256,6 +257,29 @@ async def download_file(session_id: str, token: str):
     except Exception as e:
         logger.error(f"Erreur lors du téléchargement: {str(e)}")
         raise HTTPException(status_code=500, detail="Erreur interne du serveur")
+
+@app.get("/download-zip/{session_id}")
+async def download_zip(session_id: str):
+    session = session_manager.get_session(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session non trouvée")
+    if not session.files_to_download:
+        raise HTTPException(status_code=404, detail="Aucun fichier à télécharger")
+    if len(session.files_to_download) > 500:
+        raise HTTPException(status_code=400, detail="Le téléchargement en .zip est limité à 500 fichiers à la fois. Veuillez importer par lots.")
+    zip_buffer = io.BytesIO()
+    with zipfile.ZipFile(zip_buffer, "w") as zip_file:
+        for file in session.files_to_download:
+            token = file["token"]
+            file_info = session.download_tokens.get(token)
+            if file_info:
+                zip_file.writestr(file["path"], file_info["data"])
+    zip_buffer.seek(0)
+    return StreamingResponse(
+        zip_buffer,
+        media_type="application/zip",
+        headers={"Content-Disposition": f'attachment; filename="icloud_{session_id}.zip"'}
+    )
 
 @app.exception_handler(HTTPException)
 async def http_exception_handler(request, exc):

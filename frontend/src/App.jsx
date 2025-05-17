@@ -282,6 +282,7 @@ function App() {
     startImport(5000);
   };
   const handleFullImport = () => {
+    alert("Attention : l'import complet peut générer plus de 500 fichiers. Le téléchargement .zip sera limité à 500 fichiers par lot. Vous devrez télécharger plusieurs archives si besoin.");
     startImport(null);
   };
 
@@ -396,6 +397,29 @@ function App() {
 
   const handleLogout = () => signOut(auth);
 
+  const downloadZip = async () => {
+    if (!sessionId) return;
+    const response = await fetch(`${API_URL}/download-zip/${sessionId}`);
+    if (!response.ok) {
+      if (response.status === 400) {
+        const data = await response.json();
+        alert(data.detail || "Le téléchargement .zip est limité à 500 fichiers.");
+      } else {
+        setStatus("Erreur lors du téléchargement du zip.");
+      }
+      return;
+    }
+    const blob = await response.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `icloud_${sessionId}.zip`;
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(url);
+    document.body.removeChild(a);
+  };
+
   // Affichage principal
   return (
     <div style={styles.page}>
@@ -442,7 +466,6 @@ function App() {
                   <button onClick={handleFullImport} style={styles.button}>Démarrer l'import complet</button>
                   <button onClick={handleTest} style={{ ...styles.button, ...styles.buttonAlt }}>Importer 50 fichiers</button>
                   <button onClick={handle500} style={{ ...styles.button, ...styles.buttonAlt }}>Importer 500 fichiers</button>
-                  <button onClick={handle5000} style={{ ...styles.button, ...styles.buttonAlt }}>Importer 5000 fichiers</button>
                   <button
                     onClick={handleStop}
                     style={{ ...styles.button, ...styles.buttonDanger, marginLeft: '12px' }}
@@ -538,6 +561,11 @@ function App() {
                   ))}
                 </div>
               </div>
+            )}
+            {downloadedFiles.length > 0 && (
+              <button onClick={downloadZip} style={{ ...styles.button, marginTop: 16 }}>
+                Télécharger tout (.zip)
+              </button>
             )}
           </>
         )}
