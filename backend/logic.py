@@ -203,6 +203,10 @@ class ImportSessionManager:
                 if session:
                     self.sessions[session_id] = session
 
+    def get_session(self, session_id):
+        with SESSIONS_LOCK:
+            return self.sessions.get(session_id)
+
 # Nouvelle fonction d'import pilotable par session
 
 def run_import_session(session_id, session_manager, batch_size=10):

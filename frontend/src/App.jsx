@@ -408,27 +408,27 @@ function App() {
               <span style={{ fontSize: 15, color: '#888' }}>Connecté en tant que <b>{user.email}</b></span>
               <button onClick={handleLogout} style={{ ...styles.button, ...styles.buttonAlt }}>Déconnexion</button>
             </div>
-            {step === "login" && (
-              <>
-                <input
-                  type="email"
-                  placeholder="Adresse iCloud"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+      {step === "login" && (
+        <>
+          <input
+            type="email"
+            placeholder="Adresse iCloud"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
                   style={styles.input}
-                />
-                <input
-                  type="password"
-                  placeholder="Mot de passe"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+          />
+          <input
+            type="password"
+            placeholder="Mot de passe"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
                   style={styles.input}
-                />
-                <input
-                  type="text"
-                  placeholder="Dossier de destination"
-                  value={destination}
-                  onChange={(e) => setDestination(e.target.value)}
+          />
+          <input
+            type="text"
+            placeholder="Dossier de destination"
+            value={destination}
+            onChange={(e) => setDestination(e.target.value)}
                   style={styles.input}
                 />
                 <div style={{ display: 'flex', flexWrap: 'wrap', marginBottom: 18, gap: '12px' }}>
@@ -442,18 +442,18 @@ function App() {
                     disabled={!sessionId || (importStatus && importStatus.status === 'stopped') || (importStatus && importStatus.status !== 'running')}
                   >
                     Stop
-                  </button>
+          </button>
                 </div>
-              </>
-            )}
-            {step === "2fa" && (
-              <>
+        </>
+      )}
+      {step === "2fa" && (
+        <>
                 <p style={{ marginBottom: 18, color: '#666' }}>Entrez le code de vérification envoyé à votre appareil Apple :</p>
-                <input
-                  type="text"
+          <input
+            type="text"
                   placeholder="Code de vérification"
-                  value={code2fa}
-                  onChange={(e) => setCode2fa(e.target.value)}
+            value={code2fa}
+            onChange={(e) => setCode2fa(e.target.value)}
                   style={styles.input}
                   autoFocus
                 />
@@ -470,8 +470,8 @@ function App() {
                     Retour
                   </button>
                 </div>
-              </>
-            )}
+        </>
+      )}
             {/* Barre de progression */}
             {importStatus && importStatus.total && (
               <div style={styles.progressBarWrap}>
