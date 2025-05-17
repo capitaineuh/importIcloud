@@ -266,10 +266,27 @@ async def download_file(session_id: str, token: str):
 def zipfile_streaming_generator(session):
     z = zipstream.ZipFile(mode='w', compression=zipstream.ZIP_DEFLATED)
     for file in session.files_to_download:
-        token = file["token"]
-        file_info = session.download_tokens.get(token)
-        if file_info:
-            z.write_iter(file["path"], [file_info["data"]])
+        try:
+            token = file["token"]
+            file_info = session.download_tokens.get(token)
+            if not file_info:
+                logging.warning(f"Token manquant pour le fichier : {file}")
+                continue
+            # Nettoyage du nom de fichier
+            filename = file["path"].replace("..", "_").replace("\\", "/").replace(":", "_")
+            # Forcer la conversion en bytes si besoin
+            data = file_info["data"]
+            if isinstance(data, str):
+                data = data.encode("utf-8")
+            elif hasattr(data, "read"):  # io.BytesIO ou fichier
+                data = data.read()
+            if not isinstance(data, bytes):
+                logging.error(f"Le fichier {filename} n'est pas au format bytes, type: {type(data)}")
+                continue
+            z.write_iter(filename, [data])
+            logging.info(f"Ajouté au zip : {filename} ({len(data)} octets)")
+        except Exception as e:
+            logging.error(f"Erreur lors de l'ajout du fichier {file} au zip : {e}")
     return z
 
 @app.get("/download-zip/{session_id}")
