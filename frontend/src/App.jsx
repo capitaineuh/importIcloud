@@ -4,7 +4,7 @@ import { signInWithEmailAndPassword, signOut, onAuthStateChanged, signInWithPopu
 import { googleProvider } from './firebase';
 
 // Configuration de l'API
-const API_URL = import.meta.env.VITE_API_URL || "https://import-icloud-backend-production.up.railway.app";
+const API_URL = "https://import-icloud-backend-production.up.railway.app"; //import.meta.env.VITE_API_URL ||
 
 // Fonction utilitaire pour obtenir le token Firebase
 async function getFirebaseToken() {
@@ -153,6 +153,7 @@ function App() {
   const abortControllerRef = useRef(null);
   const pollingIntervalRef = useRef(null);
   const [user, setUser] = useState(null);
+  const [isImporting, setIsImporting] = useState(false);
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, setUser);
@@ -161,6 +162,8 @@ function App() {
 
   // Fonction pour démarrer l'import sans 2FA
   const startImport = async (customLimit = null) => {
+    if (isImporting) return; // Empêche le double appel
+    setIsImporting(true);
     setStatus("Connexion en cours...");
     setLimit(customLimit);
     setSessionId(null);
@@ -168,6 +171,7 @@ function App() {
     abortControllerRef.current = new AbortController();
     try {
       const token = await getFirebaseToken();
+      const safeDestination = destination.replace(/\\/g, "/");
       const response = await fetch(`${API_URL}/start`, {
         method: "POST",
         headers: {
@@ -180,12 +184,15 @@ function App() {
         body: JSON.stringify({
           email,
           password,
-          destination_folder: destination,
+          destination_folder: safeDestination,
           limit: customLimit !== null ? parseInt(customLimit) : undefined,
         }),
       });
 
       if (!response.ok) {
+        const errorData = await response.json();
+        setStatus(`Erreur: ${errorData.detail || errorData.message}`);
+        setIsImporting(false);
         throw new Error(`HTTP error! status: ${response.status}`);
       }
 
@@ -209,6 +216,8 @@ function App() {
         console.error("Erreur:", error);
         setStatus(`Erreur lors de la connexion au serveur: ${error.message}`);
       }
+    } finally {
+      setIsImporting(false);
     }
   };
 
