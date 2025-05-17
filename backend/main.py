@@ -172,11 +172,15 @@ async def submit_2fa(request: TwoFactorRequest, background_tasks: BackgroundTask
         session = session_manager.get_session(request.session_id)
         if not session:
             raise HTTPException(status_code=404, detail="Session non trouvée")
-        # Valider le code 2FA
+        # Vérifier si le code 2FA a déjà été validé pour cette session
+        if hasattr(session, "_2fa_validated") and session._2fa_validated:
+            return {"session_id": session.session_id, "message": "2FA déjà validé, import en cours"}
+        # Utiliser la session iCloud existante (pyicloud gère le fichier de session)
         api = PyiCloudService(session.email, session.password)
         if not api.validate_2fa_code(request.code):
             raise HTTPException(status_code=400, detail="Code 2FA invalide")
-        # Si OK, passer le statut à running et lancer l'import
+        # Marquer la session comme validée pour le 2FA
+        session._2fa_validated = True
         session.status = "running"
         session.save()
         background_tasks.add_task(run_import_session, session.session_id, session_manager)
@@ -258,6 +262,21 @@ async def download_file(session_id: str, token: str):
         logger.error(f"Erreur lors du téléchargement: {str(e)}")
         raise HTTPException(status_code=500, detail="Erreur interne du serveur")
 
+def zipfile_generator(session):
+    with io.BytesIO() as zip_buffer:
+        with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
+            for file in session.files_to_download:
+                token = file["token"]
+                file_info = session.download_tokens.get(token)
+                if file_info:
+                    zip_file.writestr(file["path"], file_info["data"])
+        zip_buffer.seek(0)
+        while True:
+            chunk = zip_buffer.read(8192)
+            if not chunk:
+                break
+            yield chunk
+
 @app.get("/download-zip/{session_id}")
 async def download_zip(session_id: str):
     session = session_manager.get_session(session_id)
@@ -267,21 +286,12 @@ async def download_zip(session_id: str):
         raise HTTPException(status_code=404, detail="Aucun fichier à télécharger")
     if len(session.files_to_download) > 500:
         raise HTTPException(status_code=400, detail="Le téléchargement en .zip est limité à 500 fichiers à la fois. Veuillez importer par lots.")
-    zip_buffer = io.BytesIO()
-    with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
-        for file in session.files_to_download:
-            token = file["token"]
-            file_info = session.download_tokens.get(token)
-            if file_info:
-                zip_file.writestr(file["path"], file_info["data"])
-    zip_buffer.seek(0)
     headers = {
         "Content-Disposition": f'attachment; filename="icloud_{session_id}.zip"',
-        "Content-Type": "application/zip",
-        "Content-Length": str(len(zip_buffer.getvalue()))
+        "Content-Type": "application/zip"
     }
     return StreamingResponse(
-        zip_buffer,
+        zipfile_generator(session),
         media_type="application/zip",
         headers=headers
     )
