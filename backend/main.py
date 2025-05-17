@@ -164,17 +164,19 @@ async def start_import(request: ImportRequest, background_tasks: BackgroundTasks
 async def submit_2fa(request: TwoFactorRequest, background_tasks: BackgroundTasks):
     try:
         request.validate()
-        session_id = str(uuid.uuid4())
-        session = ImportSession(
-            email=request.email,
-            password=request.password,
-            destination=request.destination_folder,
-            limit=request.limit,
-            session_id=session_id
-        )
-        session_manager.add_session(session)
-        background_tasks.add_task(run_import_session, session_id, session_manager)
-        return {"session_id": session_id, "message": "Import démarré après 2FA"}
+        # Récupérer la session existante
+        session = session_manager.get_session(request.session_id)
+        if not session:
+            raise HTTPException(status_code=404, detail="Session non trouvée")
+        # Valider le code 2FA
+        api = PyiCloudService(session.email, session.password)
+        if not api.validate_2fa_code(request.code):
+            raise HTTPException(status_code=400, detail="Code 2FA invalide")
+        # Si OK, passer le statut à running et lancer l'import
+        session.status = "running"
+        session.save()
+        background_tasks.add_task(run_import_session, session.session_id, session_manager)
+        return {"session_id": session.session_id, "message": "Import démarré après 2FA"}
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
