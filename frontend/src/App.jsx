@@ -344,6 +344,12 @@ function App() {
           if (res.ok) {
             const data = await res.json();
             setImportStatus(data);
+            if (data.status === "2fa_required") {
+              setStep("2fa");
+              setStatus("Code 2FA requis, veuillez saisir le code envoyé.");
+              setPolling(false);
+              return;
+            }
             if (data.files_to_download) {
               setDownloadedFiles(data.files_to_download);
             }

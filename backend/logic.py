@@ -230,8 +230,7 @@ def run_import_session(session_id, session_manager, batch_size=10):
             
             if api.requires_2fa:
                 logger.info("Authentification à deux facteurs requise.")
-                session.status = "error"
-                session.errors.append("Authentification à deux facteurs requise.")
+                session.status = "2fa_required"
                 session.save()
                 return
         except Exception as e:
