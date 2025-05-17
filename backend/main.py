@@ -263,19 +263,19 @@ async def download_file(session_id: str, token: str):
         raise HTTPException(status_code=500, detail="Erreur interne du serveur")
 
 def zipfile_generator(session):
-    with io.BytesIO() as zip_buffer:
-        with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
-            for file in session.files_to_download:
-                token = file["token"]
-                file_info = session.download_tokens.get(token)
-                if file_info:
-                    zip_file.writestr(file["path"], file_info["data"])
-        zip_buffer.seek(0)
-        while True:
-            chunk = zip_buffer.read(8192)
-            if not chunk:
-                break
-            yield chunk
+    zip_buffer = io.BytesIO()
+    with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
+        for file in session.files_to_download:
+            token = file["token"]
+            file_info = session.download_tokens.get(token)
+            if file_info:
+                zip_file.writestr(file["path"], file_info["data"])
+    zip_buffer.seek(0)
+    while True:
+        chunk = zip_buffer.read(8192)
+        if not chunk:
+            break
+        yield chunk
 
 @app.get("/download-zip/{session_id}")
 async def download_zip(session_id: str):
