@@ -9,3 +9,4 @@ python-dotenv==1.0.0
 pillow==10.1.0
 pillow-heif==0.13.1
 tqdm==4.66.1
+zipstream-new 
