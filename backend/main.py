@@ -17,6 +17,7 @@ import asyncio
 import io
 import re
 import zipfile
+import zipstream
 
 print("----------------------------------Python version:", sys.version)
 # Configuration du logging
@@ -262,20 +263,14 @@ async def download_file(session_id: str, token: str):
         logger.error(f"Erreur lors du téléchargement: {str(e)}")
         raise HTTPException(status_code=500, detail="Erreur interne du serveur")
 
-def zipfile_generator(session):
-    zip_buffer = io.BytesIO()
-    with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
-        for file in session.files_to_download:
-            token = file["token"]
-            file_info = session.download_tokens.get(token)
-            if file_info:
-                zip_file.writestr(file["path"], file_info["data"])
-    zip_buffer.seek(0)
-    while True:
-        chunk = zip_buffer.read(8192)
-        if not chunk:
-            break
-        yield chunk
+def zipfile_streaming_generator(session):
+    z = zipstream.ZipFile(mode='w', compression=zipstream.ZIP_DEFLATED)
+    for file in session.files_to_download:
+        token = file["token"]
+        file_info = session.download_tokens.get(token)
+        if file_info:
+            z.write_iter(file["path"], [file_info["data"]])
+    return z
 
 @app.get("/download-zip/{session_id}")
 async def download_zip(session_id: str):
@@ -291,7 +286,7 @@ async def download_zip(session_id: str):
         "Content-Type": "application/zip"
     }
     return StreamingResponse(
-        zipfile_generator(session),
+        zipfile_streaming_generator(session),
         media_type="application/zip",
         headers=headers
     )
