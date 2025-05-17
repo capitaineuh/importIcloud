@@ -268,17 +268,22 @@ async def download_zip(session_id: str):
     if len(session.files_to_download) > 500:
         raise HTTPException(status_code=400, detail="Le téléchargement en .zip est limité à 500 fichiers à la fois. Veuillez importer par lots.")
     zip_buffer = io.BytesIO()
-    with zipfile.ZipFile(zip_buffer, "w") as zip_file:
+    with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
         for file in session.files_to_download:
             token = file["token"]
             file_info = session.download_tokens.get(token)
             if file_info:
                 zip_file.writestr(file["path"], file_info["data"])
     zip_buffer.seek(0)
+    headers = {
+        "Content-Disposition": f'attachment; filename="icloud_{session_id}.zip"',
+        "Content-Type": "application/zip",
+        "Content-Length": str(len(zip_buffer.getvalue()))
+    }
     return StreamingResponse(
         zip_buffer,
         media_type="application/zip",
-        headers={"Content-Disposition": f'attachment; filename="icloud_{session_id}.zip"'}
+        headers=headers
     )
 
 @app.exception_handler(HTTPException)
