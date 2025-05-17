@@ -242,6 +242,7 @@ function App() {
           code: code2fa,
           destination_folder: destination,
           limit: limit !== null ? parseInt(limit) : undefined,
+          session_id: sessionId,
         }),
       });
 

@@ -106,6 +106,7 @@ class TwoFactorRequest(BaseModel):
     code: constr(min_length=6, max_length=6)
     destination_folder: str
     limit: Optional[int] = None
+    session_id: str
 
     def validate(self):
         if not validate_email(self.email):
@@ -115,6 +116,8 @@ class TwoFactorRequest(BaseModel):
         self.destination_folder = sanitize_path(self.destination_folder)
         if self.limit is not None and self.limit < 0:
             raise ValueError("La limite doit être positive")
+        if not re.match(r'^[a-f0-9-]{36}$', self.session_id):
+            raise ValueError("ID de session invalide")
 
 class StopRequest(BaseModel):
     session_id: str
